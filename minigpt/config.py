@@ -14,6 +14,7 @@ class GPTConfig:
     n_embd: int = 128          # Embedding dimension (d_model)
     dropout: float = 0.1       # Dropout probability
     bias: bool = False         # Whether to include bias terms in Linears & LayerNorms
+    causal: bool = True        # Causal masking (True for GPT, False for unmasked/bidirectional)
 
     def __post_init__(self):
         if self.n_embd % self.n_head != 0:

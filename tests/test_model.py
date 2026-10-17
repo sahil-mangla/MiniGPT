@@ -93,3 +93,30 @@ def test_autoregressive_generation(small_config):
     out_greedy_1 = model.generate(prompt, max_new_tokens=max_new_tokens, temperature=0.0)
     out_greedy_2 = model.generate(prompt, max_new_tokens=max_new_tokens, temperature=0.0)
     assert torch.equal(out_greedy_1, out_greedy_2)  # must be deterministic
+
+
+def test_bidirectional_attention_allows_future_leakage():
+    """
+    Verify that when causal=False, future tokens DO influence past logits.
+    """
+    config = GPTConfig(
+        vocab_size=32,
+        block_size=16,
+        n_layer=2,
+        n_head=2,
+        n_embd=32,
+        dropout=0.0,
+        causal=False,
+    )
+    model = MiniGPT(config)
+    model.eval()
+
+    seq1 = torch.tensor([[5, 10, 15, 20]], dtype=torch.long)
+    seq2 = torch.tensor([[5, 10, 25, 30]], dtype=torch.long)
+
+    with torch.no_grad():
+        logits1, _ = model(seq1)
+        logits2, _ = model(seq2)
+
+    # With causal=False, position 0 logits MUST change because position 2 and 3 tokens changed
+    assert not torch.allclose(logits1[:, 0, :], logits2[:, 0, :], atol=1e-4)

@@ -27,6 +27,8 @@ class CausalSelfAttention(nn.Module):
         self.attn_dropout = nn.Dropout(config.dropout)
         self.resid_dropout = nn.Dropout(config.dropout)
 
+        self.causal = config.causal
+
         # Causal mask: lower-triangular matrix ensuring position i can only attend to j <= i
         self.register_buffer(
             "bias",
@@ -48,7 +50,8 @@ class CausalSelfAttention(nn.Module):
         # Scaled dot-product attention: (Q @ K^T) / sqrt(d_k)
         att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(self.head_dim))
         # Apply causal mask: mask positions where bias is 0 with -inf
-        att = att.masked_fill(self.bias[:, :, :T, :T] == 0, float("-inf"))
+        if self.causal:
+            att = att.masked_fill(self.bias[:, :, :T, :T] == 0, float("-inf"))
         att = F.softmax(att, dim=-1)
         att = self.attn_dropout(att)
 
