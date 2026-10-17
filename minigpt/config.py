@@ -15,6 +15,7 @@ class GPTConfig:
     dropout: float = 0.1       # Dropout probability
     bias: bool = False         # Whether to include bias terms in Linears & LayerNorms
     causal: bool = True        # Causal masking (True for GPT, False for unmasked/bidirectional)
+    use_sdpa: bool = False     # Use PyTorch fused scaled_dot_product_attention (Flash/MPS)
 
     def __post_init__(self):
         if self.n_embd % self.n_head != 0:

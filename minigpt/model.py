@@ -28,6 +28,7 @@ class CausalSelfAttention(nn.Module):
         self.resid_dropout = nn.Dropout(config.dropout)
 
         self.causal = config.causal
+        self.use_sdpa = config.use_sdpa
 
         # Causal mask: lower-triangular matrix ensuring position i can only attend to j <= i
         self.register_buffer(
@@ -47,16 +48,23 @@ class CausalSelfAttention(nn.Module):
         q = q.view(B, T, self.n_head, self.head_dim).transpose(1, 2)
         v = v.view(B, T, self.n_head, self.head_dim).transpose(1, 2)
 
-        # Scaled dot-product attention: (Q @ K^T) / sqrt(d_k)
-        att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(self.head_dim))
-        # Apply causal mask: mask positions where bias is 0 with -inf
-        if self.causal:
-            att = att.masked_fill(self.bias[:, :, :T, :T] == 0, float("-inf"))
-        att = F.softmax(att, dim=-1)
-        att = self.attn_dropout(att)
+        if self.use_sdpa:
+            # Fused scaled dot-product attention (Flash/MPS)
+            # Memory complexity is O(T) instead of O(T^2) because T x T matrix is never materialized
+            dropout_p = self.attn_dropout.p if self.training else 0.0
+            y = F.scaled_dot_product_attention(
+                q, k, v, attn_mask=None, dropout_p=dropout_p, is_causal=self.causal
+            )
+        else:
+            # Scaled dot-product attention: (Q @ K^T) / sqrt(d_k)
+            att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(self.head_dim))
+            # Apply causal mask: mask positions where bias is 0 with -inf
+            if self.causal:
+                att = att.masked_fill(self.bias[:, :, :T, :T] == 0, float("-inf"))
+            att = F.softmax(att, dim=-1)
+            att = self.attn_dropout(att)
+            y = att @ v
 
-        # Weighted combination of values: (B, n_head, T, head_dim)
-        y = att @ v
         # Reassemble all head outputs side by side: (B, T, C)
         y = y.transpose(1, 2).contiguous().view(B, T, C)
 

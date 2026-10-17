@@ -120,3 +120,49 @@ def test_bidirectional_attention_allows_future_leakage():
 
     # With causal=False, position 0 logits MUST change because position 2 and 3 tokens changed
     assert not torch.allclose(logits1[:, 0, :], logits2[:, 0, :], atol=1e-4)
+
+
+def test_sdpa_and_explicit_attention_equivalence():
+    """
+    Verify that fused SDPA and explicit matrix attention compute mathematically
+    identical output representations when given identical weights.
+    """
+    torch.manual_seed(42)
+    config_explicit = GPTConfig(
+        vocab_size=32,
+        block_size=16,
+        n_layer=2,
+        n_head=2,
+        n_embd=32,
+        dropout=0.0,
+        causal=True,
+        use_sdpa=False,
+    )
+    config_sdpa = GPTConfig(
+        vocab_size=32,
+        block_size=16,
+        n_layer=2,
+        n_head=2,
+        n_embd=32,
+        dropout=0.0,
+        causal=True,
+        use_sdpa=True,
+    )
+
+    model_explicit = MiniGPT(config_explicit)
+    model_sdpa = MiniGPT(config_sdpa)
+
+    # Copy identical weights
+    model_sdpa.load_state_dict(model_explicit.state_dict())
+
+    model_explicit.eval()
+    model_sdpa.eval()
+
+    idx = torch.randint(0, 32, (2, 10))
+
+    with torch.no_grad():
+        out_explicit, _ = model_explicit(idx)
+        out_sdpa, _ = model_sdpa(idx)
+
+    # Must be numerically identical within floating point tolerance
+    assert torch.allclose(out_explicit, out_sdpa, atol=1e-5)
