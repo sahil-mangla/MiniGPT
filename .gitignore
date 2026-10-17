@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# Checkpoints / weights / data
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.onnx
+data/
+weights/
+checkpoints/
+runs/
+wandb/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IDEs & OS
+.DS_Store
+.vscode/
+.idea/
