@@ -1,19 +1,22 @@
 import torch
 from minigpt.model import MiniGPT
-from minigpt.tokenizer import CharTokenizer
+from minigpt.tokenizer import Tokenizer, CharTokenizer, BPETokenizer
 
 
-def load_model_from_checkpoint(checkpoint_path: str, device: str = "cpu") -> tuple[MiniGPT, CharTokenizer]:
+def load_model_from_checkpoint(checkpoint_path: str, device: str = "cpu") -> tuple[MiniGPT, Tokenizer]:
     """
-    Load a trained MiniGPT model and reconstructed CharTokenizer from a saved checkpoint.
+    Load a trained MiniGPT model and reconstructed Tokenizer from a saved checkpoint.
     """
     checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
     config = checkpoint["model_config"]
-    chars = checkpoint["chars"]
+    tok_type = checkpoint.get("tokenizer_type", "char")
 
-    # Reconstruct tokenizer
-    reconstructed_corpus = "".join(chars)
-    tokenizer = CharTokenizer(reconstructed_corpus)
+    if tok_type == "bpe":
+        tokenizer = BPETokenizer(merges=checkpoint["merges"])
+    else:
+        chars = checkpoint["chars"]
+        reconstructed_corpus = "".join(chars)
+        tokenizer = CharTokenizer(reconstructed_corpus)
 
     model = MiniGPT(config)
     model.load_state_dict(checkpoint["model_state_dict"])

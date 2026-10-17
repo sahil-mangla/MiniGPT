@@ -6,7 +6,7 @@ from minigpt.config import GPTConfig, TrainConfig
 from minigpt.dataset import prepare_data
 from minigpt.generate import generate_text, load_model_from_checkpoint
 from minigpt.model import MiniGPT
-from minigpt.tokenizer import CharTokenizer
+from minigpt.tokenizer import CharTokenizer, BPETokenizer
 from minigpt.train import train
 
 
@@ -18,8 +18,13 @@ def train_command(args):
         text = f.read()
 
     print(f"Loaded corpus from {args.data} ({len(text):,} characters).")
-    tokenizer = CharTokenizer(text)
-    print(f"Constructed vocabulary of size {tokenizer.vocab_size}.")
+    if args.tokenizer == "bpe":
+        print(f"Training BPETokenizer with target vocabulary size {args.bpe_vocab_size}...")
+        tokenizer = BPETokenizer.train_from_text(text, target_vocab_size=args.bpe_vocab_size)
+    else:
+        tokenizer = CharTokenizer(text)
+
+    print(f"Constructed {args.tokenizer.upper()} vocabulary of size {tokenizer.vocab_size}.")
 
     train_data, val_data = prepare_data(text, tokenizer, train_split=args.train_split)
 
@@ -31,6 +36,7 @@ def train_command(args):
         n_embd=args.n_embd,
         dropout=args.dropout,
         bias=args.bias,
+        use_sdpa=args.use_sdpa,
     )
 
     device = (
@@ -128,6 +134,9 @@ def main():
     train_parser.add_argument("--eval_interval", type=int, default=100, help="Evaluation interval.")
     train_parser.add_argument("--eval_iters", type=int, default=20, help="Number of evaluation batches.")
     train_parser.add_argument("--train_split", type=float, default=0.9, help="Train split fraction.")
+    train_parser.add_argument("--tokenizer", type=str, default="char", choices=["char", "bpe"], help="Tokenizer type ('char' or 'bpe').")
+    train_parser.add_argument("--bpe_vocab_size", type=int, default=380, help="Target vocabulary size for BPE.")
+    train_parser.add_argument("--use_sdpa", action="store_true", help="Enable fused SDPA attention.")
     train_parser.add_argument("--checkpoint_dir", type=str, default="checkpoints", help="Directory for checkpoints.")
     train_parser.add_argument("--cpu", action="store_true", help="Force CPU instead of MPS/CUDA.")
 

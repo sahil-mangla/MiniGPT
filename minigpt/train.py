@@ -5,7 +5,7 @@ import torch
 from minigpt.config import GPTConfig, TrainConfig
 from minigpt.dataset import get_batch, prepare_data
 from minigpt.model import MiniGPT
-from minigpt.tokenizer import CharTokenizer
+from minigpt.tokenizer import Tokenizer, CharTokenizer, BPETokenizer
 
 
 def configure_optimizers(
@@ -149,6 +149,7 @@ def train(
             if losses["val"] < best_val_loss:
                 best_val_loss = losses["val"]
                 checkpoint_path = os.path.join(checkpoint_dir, "best_model.pt")
+                is_bpe = isinstance(tokenizer, BPETokenizer)
                 torch.save(
                     {
                         "step": iter_num,
@@ -157,7 +158,9 @@ def train(
                         "model_config": model_config,
                         "train_config": train_config,
                         "val_loss": best_val_loss,
-                        "chars": tokenizer.vocabulary,
+                        "tokenizer_type": "bpe" if is_bpe else "char",
+                        "merges": tokenizer.merges if is_bpe else None,
+                        "chars": tokenizer.vocabulary if not is_bpe else None,
                     },
                     checkpoint_path,
                 )
