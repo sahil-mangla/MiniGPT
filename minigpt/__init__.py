@@ -3,7 +3,7 @@ MiniGPT: A compact, modular GPT implementation and experimentation lab from scra
 """
 
 from minigpt.config import GPTConfig, TrainConfig
-from minigpt.tokenizer import Tokenizer, CharTokenizer
+from minigpt.tokenizer import Tokenizer, CharTokenizer, BPETokenizer
 from minigpt.dataset import prepare_data, get_batch
 from minigpt.model import MiniGPT, CausalSelfAttention, Block, MLP
 from minigpt.train import train, estimate_loss, configure_optimizers
@@ -14,6 +14,7 @@ __all__ = [
     "TrainConfig",
     "Tokenizer",
     "CharTokenizer",
+    "BPETokenizer",
     "prepare_data",
     "get_batch",
     "MiniGPT",
